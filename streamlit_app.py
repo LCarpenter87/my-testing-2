@@ -1,22 +1,45 @@
 import streamlit as st
-import pandas as pd
 import requests
+import pandas as pd
+import random
 
-st.title('Pokemon Explorer!!!')
+def get_pokemon_data(pokemon_id):
+    url = f'https://pokeapi.co/api/v2/pokemon/{pokemon_id}/'
+    response = requests.get(url)
+    if response.status_code == 200:
+        return response.json()
+    else:
+        return None
 
+def get_random_pokemon_data(count=5):
+    random_ids = random.sample(range(1, 1000), count)
+    random_pokemon_data = [get_pokemon_data(pokemon_id) for pokemon_id in random_ids if get_pokemon_data(pokemon_id)]
+    return random_pokemon_data
 
-### element to pick the pokemon number!!
-pokemon_number = st.slider("Choose a pokemon!!!", 1, 1100)
+st.title('Pokémon Information')
+pokemon_id = st.number_input('Enter Pokémon ID:', min_value=1, max_value=1000, step=1)
 
-## element to get the latest data on that pokemon!
-pokemon_url = f"https://pokeapi.co/api/v2/pokemon/{pokemon_number}"
-response = requests.get(pokemon_url).json() 
+if st.button('Fetch Pokémon Data'):
+    if pokemon_id:
+        pokemon_data = get_pokemon_data(pokemon_id)
+        if pokemon_data:
+            st.write(f"### {pokemon_data['name']}")
+            st.image(pokemon_data['sprites']['front_default'], caption='Pokémon Image', use_column_width=True)
+            st.write(f"**Primary Type:** {pokemon_data['types'][0]['type']['name']}")
 
-#element to isolate specific facts about that pokemon!
-pokemon_name = response['name']
-pokemon_height = response['height']
+            random_pokemon_data = get_random_pokemon_data()
+            random_pokemon_data.append(pokemon_data)
 
-#code to display it! 
-st.title(pokemon_name.title())
-st.write(f"This pokemon is {pokemon_height} meters tall!")
+            df = pd.DataFrame({
+                'name': [pokemon['name'] for pokemon in random_pokemon_data],
+                'height': [pokemon['height'] for pokemon in random_pokemon_data],
+                'weight': [pokemon['weight'] for pokemon in random_pokemon_data]
+            })
 
+            st.subheader('Height Comparison')
+            st.bar_chart(df.set_index('name')['height'])
+
+            st.subheader('Weight Comparison')
+            st.bar_chart(df.set_index('name')['weight'])
+        else:
+            st.error("Pokemon not found. Please enter a valid ID.")
